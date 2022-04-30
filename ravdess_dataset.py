@@ -1,6 +1,9 @@
 from pathlib import Path 
 import pickle
-import numpy as np 
+import numpy as np
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import pandas as pd
 import torch
 import math
@@ -12,6 +15,8 @@ import cv2
 from emonet.emonet.data_augmentation import DataAugmentor
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence,pack_padded_sequence,pack_sequence,pad_packed_sequence
+from sklearn.preprocessing import StandardScaler
 
 
 EMOTIONS = {1:'neutral', 2:'calm', 3:'happy', 4:'sad', 5:'angry', 6:'fear', 7:'disgust', 0:'surprise'}
@@ -137,7 +142,7 @@ class RavdessDataset(Dataset):
 
 	
 	def get_images(self, video_path, landmark_path):
-		print("video_path: ", video_path)
+		# print("video_path: ", video_path)
 		vidcap = cv2.VideoCapture(video_path)
 		images = []
 		success,image = vidcap.read()
@@ -146,7 +151,7 @@ class RavdessDataset(Dataset):
 			success,image = vidcap.read()
 		
 		lm_df = pd.read_csv(landmark_path)
-		print("len(images), lm_df.shape[0]: ", len(images), lm_df.shape[0])
+		# print("len(images), lm_df.shape[0]: ", len(images), lm_df.shape[0])
 		if lm_df.shape[0]!=len(images):
 			min_num = min(lm_df.shape[0], len(images))
 			lm_df = lm_df[:min_num]
@@ -179,8 +184,15 @@ class RavdessDataset(Dataset):
 				img = self.transform_image(img)
 			# print("transform_image: ", type(img), img.shape)
 			aug_images.append(img)
-		aug_images = torch.FloatTensor(np.stack(aug_images, axis=0))
-		return aug_images
+		aug_images = np.stack(aug_images, axis=0)
+		B, C, H, W = aug_images.shape
+		out_images = np.zeros((30*3, C, H, W))
+		if B < 30*3:
+			out_images[:B] = aug_images
+		else:
+			out_images = aug_images[:30*3]
+		out_images = torch.FloatTensor(out_images)
+		return out_images
 
 
 	def get_speech(self, speech_path):
@@ -193,17 +205,32 @@ class RavdessDataset(Dataset):
 		# print("augmented_signals: ", augmented_signals.shape)
 		mel_spectrogram = getMELspectrogram(signal, SAMPLE_RATE)
 		# print("mel_spectrogram: ", mel_spectrogram.shape)
-		mel_spectrogram = torch.FloatTensor(mel_spectrogram)
+		mel_spectrogram = torch.FloatTensor(np.expand_dims(mel_spectrogram, 0))
 		return mel_spectrogram
+
+	# def collate_fn(batch):
+	# 	batch.sort(key=lambda x: len(x[0]), reverse=True)
+	# 	img, speech, emonet_label, speech_label = zip(*batch)
+		
+	# 	img = list(img)
+	# 	speech = list(speech)
+	# 	emonet_label = list(emonet_label)
+	# 	speech_label = list(speech_label)
+	# 	img_lens = torch.LongTensor([len(i) for i in img])
+	# 	emonet_label = torch.tensor(emonet_label)
+	# 	speech_label = torch.tensor(speech_label)
+	# 	speech = torch.FloatTensor(np.stack(speech, axis=0))
+	# 	pad_img = pad_sequence(img, batch_first=True, padding_value=0)
+	# 	return pad_img, speech, emonet_label, speech_label, img_lens
 
 
 if __name__ == "__main__":
-	video_dir = './ravdess-emotional-speech-audio/videos'
-	speech_dir = './ravdess-emotional-speech-audio/audio_speech_actors_01-24/'
-	landmark_dir = './ravdess-emotional-speech-audio/facial_landmarks'
+	video_dir = './ravdess_data/videos'
+	speech_dir = './ravdess_data/audio_speech_actors_01-24/'
+	landmark_dir = './ravdess_data/facial_landmarks'
 
 	image_size = 256
-	batch_size = 8
+	batch_size = 3
 	n_workers = 1
 	transform_image = transforms.Compose([transforms.ToTensor()])
 	transform_image_shape_no_flip = DataAugmentor(image_size, image_size)
@@ -213,11 +240,41 @@ if __name__ == "__main__":
 	train_ids, val_ids, test_ids = train_val_test_split(video_dir)
 	dataset = RavdessDataset(video_dir, speech_dir, landmark_dir, test_ids, 
 						transform_image_shape=transform_image_shape_no_flip, transform_image=transform_image)
-	test_dataloader_no_flip = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=n_workers)
-	for batch in test_dataloader_no_flip:
-		img, speech, emonet_label, speech_label = batch
-		print(img.shape, speech.shape, emonet_label.shape, speech_label.shape)
-		print(emonet_label)
-		print(speech_label)
+	# test_dataloader_no_flip = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=n_workers)
+	# for batch in test_dataloader_no_flip:
+	# 	img, speech, emonet_label, speech_label = batch
+	# 	print("type: ", type(img), type(speech), type(emonet_label), type(speech_label))
+	# 	print(img.shape, speech.shape, emonet_label.shape, speech_label.shape)
+	# 	print(emonet_label)
+	# 	print(speech_label)
+	speech_data = []
+	for data in dataset:
+		img, speech, emonet_label, speech_label = data
+		speech_data.append(speech) #[128, 563]
+		
+	scaler = StandardScaler()
+	speech_data = np.array(torch.stack(speech_data, dim=0))
+	speech_data = np.expand_dims(speech_data,1)
+	print(speech_data.shape)
+
+	b,c,h,w = speech_data.shape
+
+	speech_data = np.reshape(speech_data, newshape=(b,-1))
+	print(speech_data[0])
+	speech_data = scaler.fit_transform(speech_data)
+	speech_data = np.reshape(speech_data, newshape=(b,c,h,w))
+	print(speech_data[0])
+
+	single_data = np.reshape(np.array(speech), newshape=(1,-1))
+
+	single_tranform = scaler.transform(single_data)
+	print(single_tranform.shape, single_tranform)
+	single_tranform = np.reshape(single_tranform, newshape=(1,1,h,w))
+	print("single_tranform: ", single_tranform)
+	print("scaler single transform: ", scaler.transform(speech))
+
+
+
+
 
 
