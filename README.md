@@ -21,6 +21,10 @@ Download [RAVDESS](https://zenodo.org/record/1188976#.YmyVnZPMK3I) dataset and [
 &emsp;&emsp;|- ...<br>
 &emsp;&emsp;|- Actor_24<br>
 
+### Data processing
+Video data: each video segment is 3 seconds with sampling rate fps=30. Each frame with facial landmark labels is augmented with `emonet.emonet.data_augmentation.DataAugmentor` which takes in the bounding box of the face, centers the face and scales it into 256-by-256 image. The final input video data has shape (90, 3, 256, 256). <br>
+
+Speech data: each speech segment is also 3 seconds and is sampled with `librosa.load(speech_path, duration=3, offset=0.5, sr=SAMPLE_RATE)` with `SAMPLE_RATE = 48000`. It is then augmented with Gaussian noise as in `ravdess_dataset.addAWGN` and transformed into MELspectrogram as in `ravdess_dataset.getMELspectrogram`. The final input speech data has shape (128, 563). <br>
 
 ### Speech-only model
 The speech-only model is the pre-trained Parallel 2D CNN - Transformer Encoder model from the repo [Speech-Emotion-Classification-with-PyTorch](https://github.com/Data-Science-kosta/Speech-Emotion-Classification-with-PyTorch.git).<br>
