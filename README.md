@@ -9,17 +9,17 @@ pip install -r requirements.txt
 Download [RAVDESS](https://zenodo.org/record/1188976#.YmyVnZPMK3I) dataset and [RAVDESS Facial Landmark](https://zenodo.org/record/3255102#.YmyYOJPMK3I) and put them in the following directory
 
 |-ravdess_data<br>
-	|- audio_speech_actors_01-24<br>
-		|- Actor_01<br>
-		|- ...<br>
-		|- Actor_24<br>
-	|- facial_landmarks<br>
-		|- 01-01-01-01-01-01-01.csv<br>
-		|- ...<br>
-	|- videos<br>
-		|- Actor_01<br>
-		|- ...<br>
-		|- Actor_24<br>
+&emsp;|- audio_speech_actors_01-24<br>
+&emsp;&emsp;|- Actor_01<br>
+&emsp;&emsp;|- ...<br>
+&emsp;&emsp;|- Actor_24<br>
+&emsp;|- facial_landmarks<br>
+&emsp;&emsp;|- 01-01-01-01-01-01-01.csv<br>
+&emsp;&emsp;|- ...<br>
+&emsp;|- videos<br>
+&emsp;&emsp;|- Actor_01<br>
+&emsp;&emsp;|- ...<br>
+&emsp;&emsp;|- Actor_24<br>
 
 
 ### Speech-only model
