@@ -1,0 +1,1 @@
+from .cnn_transformer import ParallelCnnTransformerModel
