@@ -1,5 +1,99 @@
 # Multimodal Emotion Detection (Video + Speech)
 
+## TRIGGER project 
+
+### Requirements
+```
+pip install -r requirements_trigger.txt
+```
+
+### Data preprocessing
+- Video preprocessing: split video into 3-second clips; sample the frames with fps=30; extract and process faces into 256*256 images; save face images into .jpg files
+- There are three students in each frame. There are self-defined bounding boxes for the positions of students on the left, middle, and right. Currently the bounding boxes ([[x_min, y_min], [x_max, y_max]]) are:
+	- left_bb = [[100,450],[300, 900]]
+	- mid_bb = [[750,450],[1000, 850]]
+	- right_bb = [[1550,450],[1800, 850]]
+- Calculate IOU of each detected face bounding boxes with the position boxes, and choose the one with highest IOU for the left, middle, right positions. If there is no overlap between the position box and the face bounding boxes, save a black image for this position of this frame.
+- Save the audio of the clip into .wav file
+
+Run script `python trigger_data_preprocessing.py`. Remember to change the video directory and target directory in the main function. It can support processing both a batch of videos (video folder) and a single video file. Examples in `trigger_data_preprocessing.py`. <br>
+
+Result precessed data directory structure:<br>
+
+|-processed_data<br>
+&emsp;|- videoname_1<br>
+&emsp;&emsp;|- clip_0<br>
+&emsp;&emsp;&emsp;|- audio_clip.wav<br>
+&emsp;&emsp;&emsp;|- left_frames<br>
+&emsp;&emsp;&emsp;&emsp;|- frame_0.jpg<br>
+&emsp;&emsp;&emsp;&emsp;|- ...<br>
+&emsp;&emsp;&emsp;&emsp;|- frame_89.jpg<br>
+&emsp;&emsp;&emsp;|- mid_frames<br>
+&emsp;&emsp;&emsp;&emsp;|- frame_0.jpg<br>
+&emsp;&emsp;&emsp;&emsp;|- ...<br>
+&emsp;&emsp;&emsp;&emsp;|- frame_89.jpg<br>
+&emsp;&emsp;&emsp;|- right_frames<br>
+&emsp;&emsp;&emsp;&emsp;|- frame_0.jpg<br>
+&emsp;&emsp;&emsp;&emsp;|- ...<br>
+&emsp;&emsp;&emsp;&emsp;|- frame_89.jpg<br>
+&emsp;&emsp;|- ...<br>
+&emsp;&emsp;|- clip_x<br>
+&emsp;|- videoname_2<br>
+&emsp;|- ...<br>
+&emsp;|- videoname_x<br>
+
+### Model inference 
+
+Derive an emotion label for each 3-second video clip. Emotion labels are ['neutral', 'calm', 'happy', 'sad', 'angry', 'fear', 'disgust', 'surprise']. Labels are saved into csv files. <br>
+
+Example scripts:
+- Multimodal:
+```
+python trigger_model_eval.py \
+--processed_data_dir /scratch/project_2005901/full_processed_data \
+--result_csv_path /scratch/project_2005901/full_processed_data/multimodal_result.csv \
+--modality multi \
+--checkpoint_path ./outputs/multimodal_model/modelParams-2.pkl \
+--print_step_size 10
+```
+
+- Video-only:
+```
+python trigger_model_eval.py \
+--processed_data_dir /scratch/project_2005901/full_processed_data \
+--result_csv_path /scratch/project_2005901/full_processed_data/video_result.csv \
+--modality video \
+--checkpoint_path ./outputs/EmoNetLSTMfinetune/modelParams-1.pkl \
+--print_step_size 10
+```
+
+- Audio-only:
+```
+python trigger_model_eval.py \
+--processed_data_dir /scratch/project_2005901/full_processed_data \
+--result_csv_path /scratch/project_2005901/full_processed_data/audio_result.csv \
+--modality audio \
+--checkpoint_path ./speech_emotion_classification_with_pytorch/pretrained_models/cnn_transf_parallel_model.pt \
+--print_step_size 10
+```
+
+- Result csv file:
+```
+video_session: video name (e.g. demosharp)
+clip_idx: clip index (e.g. 11)
+clip_name: name of the clip directory (e.g. clip_11)
+clip_start_timestamp: the start timestamp of the video clip (e.g. 33)
+clip_end_timestamp: the end timestamp of the video clip (e.g. 36)
+student_pos: left/mid/right
+audio_path: audio file path
+frames_path: frame image directory
+num_frames: number of images in the frame image directory
+label_idxs: for multimodal and audio-only model, label indexes are {1:'neutral', 2:'calm', 3:'happy', 4:'sad', 5:'angry', 6:'fear', 7:'disgust', 0:'surprise'}; for video-only model, label indexes are {0:'neutral', 1:'happy', 2:'sad', 3:'surprise', 4:'fear', 5:'disgust', 6:'angry', 7:'calm'}
+labels: ['neutral', 'calm', 'happy', 'sad', 'angry', 'fear', 'disgust', 'surprise']
+```
+
+## Models trained on RAVDESS
+
 ### Requirements
 ```
 pip install -r requirements.txt

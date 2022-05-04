@@ -22,13 +22,14 @@ class VideoSpeechModel(nn.Module):
 						state_dict_path=None)
 
 		if EmoNetLSTM_state_dict_path:
-			checkpoint_dict = torch.load(EmoNetLSTM_state_dict_path, map_location='cpu')
+			checkpoint_dict = torch.load(EmoNetLSTM_state_dict_path, map_location=torch.device('cpu'))
 			self.emonet_lstm.load_state_dict(checkpoint_dict['state_dict'])
 			print(f'Load the pretrained emonet from {EmoNetLSTM_state_dict_path}.')
 
 		self.speech_net = ParallelCnnTransformerModel(speech_num_emotions)
 		if speech_state_dict_path:
-			self.speech_net.load_state_dict(torch.load(speech_state_dict_path))
+			speech_checkpoint = torch.load(speech_state_dict_path, map_location=torch.device('cpu'))
+			self.speech_net.load_state_dict(speech_checkpoint)
 			print(f'Load the pretrained speech_net from {speech_state_dict_path}.')
 
 		self.fc = nn.Linear(output_size*2, output_size)
